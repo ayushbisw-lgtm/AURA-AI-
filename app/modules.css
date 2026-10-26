@@ -1,0 +1,9 @@
+.code-editor-placeholder {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1;
+  color: #576176;
+  font: 12px/1.65 'DM Mono', monospace;
+  pointer-events: none;
+}
