@@ -1,5 +1,6 @@
 import type { AcademicData, AcademicTask, Semester, StudyDocument, Subject } from './academic-types';
 import { EMPTY_ACADEMIC_DATA } from './academic-types';
+import { cloudDataEnabled, deleteCloudRecord, loadCloudRecords, saveCloudRecord } from './supabase/records.ts';
 
 let activeUserId = '';
 export function setAcademicUser(userId: string) { activeUserId = userId; }
@@ -34,6 +35,7 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
 }
 
 async function getAll<T extends AcademicRecord>(store: StoreName): Promise<T[]> {
+  if (cloudDataEnabled()) return loadCloudRecords<T>(activeUserId, store);
   const database = await openAcademicDatabase();
   try {
     const transaction = database.transaction(store, 'readonly');
@@ -74,6 +76,7 @@ export async function migrateLegacyAcademicData(userId: string): Promise<void> {
 }
 
 export async function saveAcademicRecord(store: StoreName, record: AcademicRecord): Promise<void> {
+  if (cloudDataEnabled()) return saveCloudRecord(activeUserId, store, record.id, record);
   const database = await openAcademicDatabase();
   try {
     const transaction = database.transaction(store, 'readwrite');
@@ -89,6 +92,7 @@ export async function saveAcademicRecord(store: StoreName, record: AcademicRecor
 }
 
 export async function deleteAcademicRecord(store: StoreName, id: string): Promise<void> {
+  if (cloudDataEnabled()) return deleteCloudRecord(activeUserId, store, id);
   const database = await openAcademicDatabase();
   try {
     const transaction = database.transaction(store, 'readwrite');

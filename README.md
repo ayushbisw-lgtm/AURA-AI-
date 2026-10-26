@@ -19,12 +19,23 @@ Open http://localhost:3000. Keep this development server local to your computer.
 
 On first visit, create an AURA account. Additional users can create separate accounts on this installation. Chat history and Academic records use per-account browser storage; this data is local to each browser profile and is not synced to another device. Existing pre-account browser data is copied into the first account when the browser supports IndexedDB database enumeration.
 
-Account password hashes and the local session-signing key are stored under `.aura-data/` with restrictive local filesystem permissions. This directory is ignored by Git. Back it up securely if you need to preserve accounts; losing the signing key invalidates sessions. This local account setup is not intended for public or multi-server hosting: there is no cross-device database, email verification, account recovery, or request rate limiting.
+Local development keeps the existing scrypt password hashes and session-signing key under `.aura-data/`. This file-based account store is only enabled outside production; it is not suitable for Vercel or any multi-instance deployment. Production authentication uses Supabase Auth, and production chat, memory, task, settings, and academic records use Supabase Postgres with row-level security.
 
 If Ollama isn't running, open another terminal and run `ollama serve` (if your installation doesn't already run it as a service). Test Ollama directly with `ollama run qwen2.5:3b`.
 
 ## Configuration
 Set `OLLAMA_BASE_URL` and `OLLAMA_MODEL` in `.env.local`. The default URL is `http://127.0.0.1:11434`.
+
+## Production account and data setup
+
+1. Create a Supabase project and open its SQL Editor.
+2. Run [`supabase/schema.sql`](supabase/schema.sql) to create the user-owned records table and row-level security policies.
+3. In Vercel Project Settings → Environment Variables, add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for Production (and Preview if needed), then redeploy.
+4. In Supabase Authentication settings, configure the site URL and allowed redirect URLs for the deployed domain. Choose whether email confirmation is required.
+
+The browser uses Supabase's publishable/anon key. The SQL policies bind every row to `auth.uid()`; do not remove them. No service-role key is required or used by this app. If Supabase is missing in production, account endpoints return an explicit setup message instead of trying to write to the server filesystem.
+
+Existing local IndexedDB data is not deleted by this change. Local file accounts and their IDs are separate from Supabase accounts; the app does not automatically transfer those accounts. Back up local data before switching an existing installation to hosted accounts.
 
 ## Voice input
 

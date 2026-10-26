@@ -1,3 +1,5 @@
+import { cloudDataEnabled, deleteCloudRecord, loadCloudRecords, saveCloudRecord } from './supabase/records.ts';
+
 export type ChatHistoryMessage = { role: 'user' | 'assistant'; content: string };
 export type ChatConversation = {
   id: string;
@@ -24,8 +26,8 @@ function openDatabase(userId: string): Promise<IDBDatabase> {
     request.onblocked = () => reject(new Error('Close other AURA tabs to update chat history.'));
   });
 }
-
 export async function loadChatHistory(userId: string): Promise<ChatConversation[]> {
+  if (cloudDataEnabled()) return (await loadCloudRecords<ChatConversation>(userId, 'chat')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const database = await openDatabase(userId);
   try {
     const records = await new Promise<ChatConversation[]>((resolve, reject) => {
@@ -60,6 +62,7 @@ export async function migrateLegacyChatHistory(userId: string): Promise<void> {
 }
 
 export async function saveChatConversation(userId: string, conversation: ChatConversation): Promise<void> {
+  if (cloudDataEnabled()) return saveCloudRecord(userId, 'chat', conversation.id, conversation);
   const database = await openDatabase(userId);
   try {
     await new Promise<void>((resolve, reject) => {
@@ -75,6 +78,7 @@ export async function saveChatConversation(userId: string, conversation: ChatCon
 }
 
 export async function deleteChatConversation(userId: string, id: string): Promise<void> {
+  if (cloudDataEnabled()) return deleteCloudRecord(userId, 'chat', id);
   const database = await openDatabase(userId);
   try {
     await new Promise<void>((resolve, reject) => {

@@ -3,6 +3,8 @@ import { mkdir, open, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { cookies } from 'next/headers';
+import { createSupabaseServerClient } from './supabase/server';
+import { hasSupabaseConfig, SupabaseSetupError } from './supabase/config';
 
 const scrypt = promisify(nodeScrypt);
 const DATA_DIR = path.join(process.cwd(), '.aura-data');
@@ -76,6 +78,7 @@ async function createAccountUnlocked(name: string, email: string, password: stri
 }
 
 export async function createAccount(name: string, email: string, password: string) {
+  if (!isLocalFileAuthAllowed()) throw new SupabaseSetupError();
   const previous = accountWriteQueue;
   let release!: () => void;
   accountWriteQueue = new Promise<void>(resolve => { release = resolve; });
@@ -85,6 +88,7 @@ export async function createAccount(name: string, email: string, password: strin
 }
 
 export async function authenticateAccount(email: string, password: string): Promise<PublicUser | null> {
+  if (!isLocalFileAuthAllowed()) throw new SupabaseSetupError();
   const cleanEmail = email.trim().toLowerCase();
   const users = await readUsers();
   const user = users.find(item => item.email === cleanEmail);
@@ -96,12 +100,25 @@ export async function authenticateAccount(email: string, password: string): Prom
 }
 
 export async function makeSession(user: PublicUser): Promise<string> {
+  if (!isLocalFileAuthAllowed()) throw new SupabaseSetupError();
   const payload = Buffer.from(JSON.stringify({ sub: user.id, exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS })).toString('base64url');
   const signature = createHmac('sha256', await getSigningKey()).update(payload).digest('base64url');
   return `${payload}.${signature}`;
 }
 
 export async function getSessionUser(): Promise<PublicUser | null> {
+  if (!isLocalFileAuthAllowed()) {
+    if (!hasSupabaseConfig()) throw new SupabaseSetupError();
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    if (!data.user) return null;
+    return {
+      id: data.user.id,
+      name: typeof data.user.user_metadata?.name === 'string' ? data.user.user_metadata.name : '',
+      email: data.user.email ?? ''
+    };
+  }
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token || token.length > 2048) return null;
   const [payload, signature, extra] = token.split('.');
@@ -115,6 +132,54 @@ export async function getSessionUser(): Promise<PublicUser | null> {
   if (typeof parsed.sub !== 'string' || typeof parsed.exp !== 'number' || parsed.exp < Date.now() / 1000) return null;
   const user = (await readUsers()).find(item => item.id === parsed.sub);
   return user ? { id: user.id, name: user.name, email: user.email } : null;
+}
+
+/** Local file authentication is intentionally disabled in production/serverless runtimes. */
+export function isLocalFileAuthAllowed() {
+  return process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1' && !hasSupabaseConfig();
+}
+
+export async function signUpWithSupabase(name: string, email: string, password: string) {
+  if (!hasSupabaseConfig()) throw new SupabaseSetupError();
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } }
+  });
+  if (error) throw error;
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw Object.assign(new Error('An account with this email already exists.'), { code: 'user_already_exists' });
+  }
+  return {
+    user: data.user ? {
+      id: data.user.id,
+      name: typeof data.user.user_metadata?.name === 'string' ? data.user.user_metadata.name : name,
+      email: data.user.email ?? email
+    } : null,
+    needsEmailConfirmation: Boolean(data.user && !data.session),
+    migrateLegacyData: Boolean(data.user && data.session)
+  };
+}
+
+export async function signInWithSupabase(email: string, password: string): Promise<PublicUser | null> {
+  if (!hasSupabaseConfig()) throw new SupabaseSetupError();
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  if (!data.user) return null;
+  return {
+    id: data.user.id,
+    name: typeof data.user.user_metadata?.name === 'string' ? data.user.user_metadata.name : '',
+    email: data.user.email ?? email
+  };
+}
+
+export async function signOutSupabase() {
+  if (!hasSupabaseConfig()) throw new SupabaseSetupError();
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 }
 
 export { SESSION_SECONDS };
