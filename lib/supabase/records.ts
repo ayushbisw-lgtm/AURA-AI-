@@ -1,9 +1,10 @@
 'use client';
 
 import { createSupabaseBrowserClient } from './browser.ts';
+import { hasSupabaseConfig } from './config.ts';
 
 export function cloudDataEnabled() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  return hasSupabaseConfig();
 }
 
 export async function loadCloudRecords<T>(userId: string, collection: string): Promise<T[]> {

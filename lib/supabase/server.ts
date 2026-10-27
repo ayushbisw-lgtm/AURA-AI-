@@ -3,9 +3,9 @@ import { cookies } from 'next/headers';
 import { requireSupabaseConfig } from './config';
 
 export async function createSupabaseServerClient() {
-  const { url, anonKey } = requireSupabaseConfig();
+  const { url, publishableKey } = requireSupabaseConfig();
   const cookieStore = await cookies();
-  return createServerClient(url, anonKey, {
+  return createServerClient(url, publishableKey, {
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: cookiesToSet => {

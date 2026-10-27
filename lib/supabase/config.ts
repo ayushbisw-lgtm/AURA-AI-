@@ -1,18 +1,22 @@
 export class SupabaseSetupError extends Error {
   constructor() {
-    super('Account storage is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your deployment settings, then redeploy.');
+    super('Account storage is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in your environment (NEXT_PUBLIC_SUPABASE_ANON_KEY is supported as a legacy fallback), then restart locally or rebuild and redeploy.');
     this.name = 'SupabaseSetupError';
   }
 }
 
+export function getSupabaseConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return url && publishableKey ? { url, publishableKey } : null;
+}
+
 export function hasSupabaseConfig() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  return getSupabaseConfig() !== null;
 }
 
 export function requireSupabaseConfig() {
-  if (!hasSupabaseConfig()) throw new SupabaseSetupError();
-  return {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  };
+  const config = getSupabaseConfig();
+  if (!config) throw new SupabaseSetupError();
+  return config;
 }
