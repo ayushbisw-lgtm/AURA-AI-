@@ -17,6 +17,14 @@ export type PublicUser = { id: string; name: string; email: string };
 type StoredUser = PublicUser & { salt: string; passwordHash: string; createdAt: string };
 let accountWriteQueue: Promise<void> = Promise.resolve();
 
+function getSupabaseProfileName(metadata: Record<string, unknown> | undefined): string {
+  for (const key of ['name', 'full_name', 'user_name']) {
+    const value = metadata?.[key];
+    if (typeof value === 'string' && value.trim()) return value.trim().slice(0, 80);
+  }
+  return '';
+}
+
 async function ensureDataDir() { await mkdir(DATA_DIR, { recursive: true, mode: 0o700 }); }
 
 async function readUsers(): Promise<StoredUser[]> {
@@ -118,7 +126,7 @@ export async function getSessionUser(): Promise<PublicUser | null> {
     if (!data.user) return null;
     return {
       id: data.user.id,
-      name: typeof data.user.user_metadata?.name === 'string' ? data.user.user_metadata.name : '',
+      name: getSupabaseProfileName(data.user.user_metadata),
       email: data.user.email ?? ''
     };
   }
@@ -157,7 +165,7 @@ export async function signUpWithSupabase(name: string, email: string, password: 
   return {
     user: data.user ? {
       id: data.user.id,
-      name: typeof data.user.user_metadata?.name === 'string' ? data.user.user_metadata.name : name,
+      name: getSupabaseProfileName(data.user.user_metadata) || name,
       email: data.user.email ?? email
     } : null,
     needsEmailConfirmation: Boolean(data.user && !data.session),
@@ -173,7 +181,7 @@ export async function signInWithSupabase(email: string, password: string): Promi
   if (!data.user) return null;
   return {
     id: data.user.id,
-    name: typeof data.user.user_metadata?.name === 'string' ? data.user.user_metadata.name : '',
+    name: getSupabaseProfileName(data.user.user_metadata),
     email: data.user.email ?? email
   };
 }

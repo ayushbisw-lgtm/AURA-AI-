@@ -31,6 +31,7 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
   const [resendAt, setResendAt] = useState(0);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState<'google' | 'github' | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -41,6 +42,15 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
     const timer = window.setInterval(updateCountdown, 1000);
     return () => window.clearInterval(timer);
   }, [mode, resendAt]);
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('authError');
+    if (result === 'cancelled') setError('Sign-in was cancelled. You can try again or use your email and password.');
+    if (result === 'failed') setError('Social sign-in could not be completed. Please try again or use your email and password.');
+    if (result === 'cancelled' || result === 'failed') {
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+    }
+  }, []);
 
   function clearFeedback() {
     setError('');
@@ -94,6 +104,27 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The account service is unavailable.');
     } finally { setBusy(false); }
+  }
+
+  async function startOAuth(provider: 'google' | 'github') {
+    if (busy) return;
+    clearFeedback();
+    setBusy(true);
+    setOauthProvider(provider);
+    try {
+      const { error: oauthError } = await createSupabaseBrowserClient().auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: new URL('/auth/callback', window.location.origin).toString() }
+      });
+      if (oauthError) throw oauthError;
+    } catch (reason) {
+      const providerName = provider === 'google' ? 'Google' : 'GitHub';
+      setError(reason instanceof Error && reason.name === 'SupabaseSetupError'
+        ? reason.message
+        : `${providerName} sign-in could not be started. Please try again or use your email and password.`);
+      setBusy(false);
+      setOauthProvider(null);
+    }
   }
 
   async function sendRecoveryCode(event: FormEvent<HTMLFormElement>) {
@@ -223,6 +254,18 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
         {notice && <div className="auth-notice" role="status">{notice}</div>}
         <button className="auth-submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}<span>↗</span></button>
       </form> : null}
+
+      {mode === 'signin' || mode === 'signup' ? <div className="auth-oauth">
+        <div className="auth-oauth-divider"><span>OR CONTINUE WITH</span></div>
+        <button type="button" className="auth-oauth-button" onClick={() => void startOAuth('google')} disabled={busy}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.23c0-.72-.06-1.42-.18-2.1H12v3.97h5.38a4.6 4.6 0 0 1-2 3.02v2.47h3.24c1.9-1.75 2.98-4.33 2.98-7.36Z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.41l-3.24-2.47c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.76-5.6-4.12H3.05v2.55A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.96a6 6 0 0 1 0-3.92V7.49H3.05a10 10 0 0 0 0 9.02l3.35-2.55Z"/><path fill="#EA4335" d="M12 5.92c1.47 0 2.79.5 3.83 1.52l2.87-2.87A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.95 5.49L6.4 10.04c.8-2.36 3-4.12 5.6-4.12Z"/></svg>
+          {busy && oauthProvider === 'google' ? 'Connecting to Google…' : 'Continue with Google'}
+        </button>
+        <button type="button" className="auth-oauth-button" onClick={() => void startOAuth('github')} disabled={busy}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.55.1.76-.24.76-.53v-2.08c-3.1.67-3.76-1.32-3.76-1.32-.5-1.29-1.24-1.63-1.24-1.63-1.01-.69.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15.99 1.7 2.6 1.21 3.23.93.1-.72.39-1.21.7-1.49-2.48-.28-5.09-1.24-5.09-5.52 0-1.22.44-2.22 1.15-3-.12-.28-.5-1.42.11-2.96 0 0 .94-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.11-1.44 3.05-1.14 3.05-1.14.61 1.54.23 2.68.11 2.96.72.78 1.15 1.78 1.15 3 0 4.29-2.62 5.24-5.11 5.51.4.35.75 1.03.75 2.08V22c0 .29.2.63.77.52A11.1 11.1 0 0 0 12 .9Z"/></svg>
+          {busy && oauthProvider === 'github' ? 'Connecting to GitHub…' : 'Continue with GitHub'}
+        </button>
+      </div> : null}
 
       {mode === 'recovery-email' && <form onSubmit={event => void sendRecoveryCode(event)} className="auth-form">
         <label>Email address<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} /></label>

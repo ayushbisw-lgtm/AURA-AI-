@@ -39,6 +39,35 @@ The browser uses Supabase's publishable/anon key. The SQL policies bind every ro
 
 Existing local IndexedDB data is not deleted by this change. Local file accounts and their IDs are separate from Supabase accounts; the app does not automatically transfer those accounts. Back up local data before switching an existing installation to hosted accounts.
 
+## Google and GitHub sign-in
+
+The sign-in and sign-up forms use Supabase Auth OAuth with a PKCE callback at `/auth/callback`. The browser sends users to the callback on the origin they are using (local, production, or a Vercel preview), and the callback exchanges the code with the Supabase SSR client before returning to the AURA workspace. No OAuth secrets belong in this repository or in `NEXT_PUBLIC_*` variables.
+
+### Configure Google
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or select a project and open **Google Auth Platform**. Configure the app name, support email, audience, and developer contact details. While the app is in testing, add the Google accounts that will test it; publish the consent screen when ready for general use.
+2. Under **Clients**, create an OAuth client with application type **Web application**. Add your AURA website origins under **Authorized JavaScript origins** (for example `http://localhost:3000` and `https://your-production-domain.example`).
+3. In the Supabase project dashboard, open **Authentication → Sign In / Providers → Google** and copy its displayed callback URL. It has the form `https://<project-ref>.supabase.co/auth/v1/callback`.
+4. Add that exact Supabase callback URL under **Authorized redirect URIs** in the Google client. Save the Google client ID and client secret directly in the Supabase Google provider settings, enable the provider, and save. Do not put the secret in `.env.local` or Git.
+
+### Configure GitHub
+
+1. In GitHub, open **Settings → Developer settings → OAuth Apps → New OAuth App**. Set the application name and homepage URL to your AURA site.
+2. Copy the callback URL displayed by Supabase under **Authentication → Sign In / Providers → GitHub** (usually `https://<project-ref>.supabase.co/auth/v1/callback`) into the GitHub app's **Authorization callback URL**, then register the app.
+3. Generate a GitHub client secret. In Supabase, enable the GitHub provider and enter the GitHub client ID and client secret. Save the secret only in Supabase, never in this repository or browser code.
+
+### Configure Supabase redirect URLs
+
+1. In **Authentication → URL Configuration**, set **Site URL** to the production AURA URL. Keep it as the canonical production origin for email flows and fallback redirects.
+2. Add these entries to **Redirect URLs** (replace the example domain and Vercel team slug):
+   - `http://localhost:3000/auth/callback`
+   - `https://your-production-domain.example/auth/callback`
+   - `https://*-<team-or-account-slug>.vercel.app/**` for Vercel preview deployments, if you use them.
+3. Confirm the deployed app has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set in Vercel for the environments you use. The callback URL is derived from the active page origin, so local, production, and preview deployments use their own callback host without a hard-coded site URL.
+4. Test both providers locally and on the deployed domain. Check a first-time account, a returning account, cancellation, and a provider error. OAuth cannot complete until both provider credentials and the Supabase callback/redirect allowlists are configured.
+
+The app does not match accounts or call `linkIdentity()` itself. Identity behavior is handled by Supabase Auth; its documented default automatic identity linking can combine identities with the same email, while manual linking is a separate user-initiated feature. Review your Supabase identity-linking configuration and provider email-verification behavior if your account policy requires a different linking model.
+
 ## Voice input
 
 The assistant voice panel uses the browser's Web Speech API when available. Microphone permission is required, browser support varies, and the browser may send audio to an external speech-recognition service. Optional spoken replies use browser speech synthesis. Neither feature is handled by Ollama, and voice processing is not guaranteed to remain local.
