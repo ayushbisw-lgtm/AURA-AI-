@@ -31,7 +31,6 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
   const [resendAt, setResendAt] = useState(0);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [oauthProvider, setOauthProvider] = useState<'github' | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -42,15 +41,6 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
     const timer = window.setInterval(updateCountdown, 1000);
     return () => window.clearInterval(timer);
   }, [mode, resendAt]);
-
-  useEffect(() => {
-    const result = new URLSearchParams(window.location.search).get('authError');
-    if (result === 'cancelled') setError('Sign-in was cancelled. You can try again or use your email and password.');
-    if (result === 'failed') setError('Social sign-in could not be completed. Please try again or use your email and password.');
-    if (result === 'cancelled' || result === 'failed') {
-      window.history.replaceState(window.history.state, '', window.location.pathname);
-    }
-  }, []);
 
   function clearFeedback() {
     setError('');
@@ -104,26 +94,6 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The account service is unavailable.');
     } finally { setBusy(false); }
-  }
-
-  async function startOAuth() {
-    if (busy) return;
-    clearFeedback();
-    setBusy(true);
-    setOauthProvider('github');
-    try {
-      const { error: oauthError } = await createSupabaseBrowserClient().auth.signInWithOAuth({
-        provider: 'github',
-        options: { redirectTo: new URL('/auth/callback', window.location.origin).toString() }
-      });
-      if (oauthError) throw oauthError;
-    } catch (reason) {
-      setError(reason instanceof Error && reason.name === 'SupabaseSetupError'
-        ? reason.message
-        : 'GitHub sign-in could not be started. Please try again or use your email and password.');
-      setBusy(false);
-      setOauthProvider(null);
-    }
   }
 
   async function sendRecoveryCode(event: FormEvent<HTMLFormElement>) {
@@ -253,14 +223,6 @@ export default function AuthGate({ onAuthenticated }: { onAuthenticated: (user: 
         {notice && <div className="auth-notice" role="status">{notice}</div>}
         <button className="auth-submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}<span>↗</span></button>
       </form> : null}
-
-      {mode === 'signin' || mode === 'signup' ? <div className="auth-oauth">
-        <div className="auth-oauth-divider"><span>OR CONTINUE WITH</span></div>
-        <button type="button" className="auth-oauth-button" onClick={() => void startOAuth()} disabled={busy}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.55.1.76-.24.76-.53v-2.08c-3.1.67-3.76-1.32-3.76-1.32-.5-1.29-1.24-1.63-1.24-1.63-1.01-.69.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15.99 1.7 2.6 1.21 3.23.93.1-.72.39-1.21.7-1.49-2.48-.28-5.09-1.24-5.09-5.52 0-1.22.44-2.22 1.15-3-.12-.28-.5-1.42.11-2.96 0 0 .94-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.11-1.44 3.05-1.14 3.05-1.14.61 1.54.23 2.68.11 2.96.72.78 1.15 1.78 1.15 3 0 4.29-2.62 5.24-5.11 5.51.4.35.75 1.03.75 2.08V22c0 .29.2.63.77.52A11.1 11.1 0 0 0 12 .9Z"/></svg>
-          {busy && oauthProvider === 'github' ? 'Connecting to GitHub…' : 'Continue with GitHub'}
-        </button>
-      </div> : null}
 
       {mode === 'recovery-email' && <form onSubmit={event => void sendRecoveryCode(event)} className="auth-form">
         <label>Email address<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} /></label>
