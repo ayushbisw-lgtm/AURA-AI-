@@ -111,7 +111,10 @@ export async function getSessionUser(): Promise<PublicUser | null> {
     if (!hasSupabaseConfig()) throw new SupabaseSetupError();
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.getUser();
-    if (error) throw error;
+    // A visitor without a Supabase session is simply signed out. Supabase
+    // reports that normal state as AuthSessionMissingError (HTTP 400).
+    if (error && error.name !== 'AuthSessionMissingError') throw error;
+    if (error) return null;
     if (!data.user) return null;
     return {
       id: data.user.id,
