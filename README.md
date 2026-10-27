@@ -24,14 +24,16 @@ Local development keeps the existing scrypt password hashes and session-signing 
 If Ollama isn't running, open another terminal and run `ollama serve` (if your installation doesn't already run it as a service). Test Ollama directly with `ollama run qwen2.5:3b`.
 
 ## Configuration
-Set `OLLAMA_BASE_URL` and `OLLAMA_MODEL` in `.env.local`. The default URL is `http://127.0.0.1:11434`.
+Copy `.env.example` to `.env.local`, then set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` as needed. The supplied example includes this project URL: `https://vgaxeusmmzyeziccawbs.supabase.co`. The publishable key takes precedence; `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted only as a legacy fallback. Restart `npm run dev` after changing these values. The Ollama default URL is `http://127.0.0.1:11434`.
 
 ## Production account and data setup
 
-1. Create a Supabase project and open its SQL Editor.
-2. Run [`supabase/schema.sql`](supabase/schema.sql) to create the user-owned records table and row-level security policies.
-3. In Vercel Project Settings → Environment Variables, add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for Production (and Preview if needed), then redeploy.
-4. In Supabase Authentication settings, configure the site URL and allowed redirect URLs for the deployed domain. Choose whether email confirmation is required.
+1. Create a Supabase project. In Project Settings → API, copy its Project URL and Publishable key.
+2. Put those values in `.env.local` using the names in `.env.example` for local development.
+3. Choose one migration path: run [`supabase/migrations/20261026000000_create_aura_records.sql`](supabase/migrations/20261026000000_create_aura_records.sql) in Supabase SQL Editor, or use the CLI commands below. The migration is additive and enables per-user row-level security.
+4. For CLI migrations, run `npx supabase init` once if `supabase/config.toml` is not present, then `npx supabase login`, `npx supabase link --project-ref <your-project-ref>`, and `npx supabase db push` from the repository root. The SQL is safe to reapply, but choose one setup path to keep migration history clear.
+5. In Vercel Project Settings → Environment Variables, add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for Production (and Preview if needed). Use the project's URL shown above and your Supabase Project Settings → API publishable key. Then redeploy; Next.js embeds `NEXT_PUBLIC_*` values at build time.
+6. In Supabase Authentication → URL Configuration, configure the Site URL and allowed redirect URLs for the deployed domain and local development. Choose whether email confirmation is required.
 
 The browser uses Supabase's publishable/anon key. The SQL policies bind every row to `auth.uid()`; do not remove them. No service-role key is required or used by this app. If Supabase is missing in production, account endpoints return an explicit setup message instead of trying to write to the server filesystem.
 

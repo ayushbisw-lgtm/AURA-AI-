@@ -5,6 +5,7 @@ import { retrieveStudyChunks, splitStudyText, validateStudyFile } from '@/lib/ac
 import { deleteAcademicRecord, EMPTY_ACADEMIC_DATA, loadAcademicData, saveAcademicRecord, setAcademicUser } from '@/lib/academic-store';
 import type { AcademicData, AcademicTask, AcademicTaskKind, Semester, StudyChunk, StudyDocument, Subject } from '@/lib/academic-types';
 import AcademicDashboard, { EmptySettings, Icon, navGroups, QuickProfile, type AcademicAction, type AcademicSection, type ExamFormat, type ProviderStatus } from './AcademicDashboard';
+import AttendanceTracker from './AttendanceTracker';
 import type { WorkspaceSection } from '../WorkspaceSidebar';
 import './academic.css';
 
@@ -160,7 +161,7 @@ export default function AcademicWorkspace({ onBack, userId, onSignOut, onNavigat
 
   const sectionTitle: Record<AcademicSection, string> = {
     overview: 'Home', courses: 'Courses & semesters', materials: 'PDF reader', ask: 'Ask your materials',
-    exams: 'Practice studio', planner: 'Learning path', settings: 'Settings'
+    exams: 'Practice studio', planner: 'Learning path', attendance: 'Attendance Tracker', settings: 'Settings'
   };
   const upcoming = useMemo(() => data.tasks.filter(task => task.kind === 'exam' && !task.completed)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 3), [data.tasks]);
@@ -196,6 +197,7 @@ export default function AcademicWorkspace({ onBack, userId, onSignOut, onNavigat
           {section === 'ask' && <AskDocuments key={navigationKey} data={data} selectedSubjectId={selectedSubjectId} onSubjectChange={setSelectedSubjectId} initialQuestion={activePrompt} />}
           {section === 'exams' && <ExamPrep key={navigationKey} data={data} initialFormat={examFormat} initialSubjectId={selectedSubjectId} />}
           {section === 'planner' && <Planner key={navigationKey} data={data} runAction={runAction} initialDate={plannerDate} initialSubjectId={selectedSubjectId} />}
+          {section === 'attendance' && <AttendanceTracker userId={userId} onAddSubject={() => navigate({ section: 'courses' })} />}
           {section === 'settings' && <EmptySettings data={data} status={providerStatus} modelName={modelName} theme={theme} onThemeChange={setTheme} preferredName={preferredName} onEditPreferredName={onEditPreferredName} />}
         </>}
       </div>

@@ -1,4 +1,4 @@
--- Apply this in the Supabase SQL Editor before deploying the production app.
+-- Additive, user-owned storage for AURA records. Safe to apply to an empty project.
 create table if not exists public.aura_records (
   user_id uuid not null references auth.users (id) on delete cascade,
   collection text not null check (collection in (
@@ -16,23 +16,17 @@ alter table public.aura_records enable row level security;
 revoke all on public.aura_records from public, anon, authenticated;
 grant select, insert, update, delete on public.aura_records to authenticated;
 
-drop policy if exists "Users can read their own AURA records" on public.aura_records;
-create policy "Users can read their own AURA records"
-  on public.aura_records for select to authenticated
-  using ((select auth.uid()) = user_id);
-
-drop policy if exists "Users can insert their own AURA records" on public.aura_records;
-create policy "Users can insert their own AURA records"
-  on public.aura_records for insert to authenticated
-  with check ((select auth.uid()) = user_id);
-
-drop policy if exists "Users can update their own AURA records" on public.aura_records;
-create policy "Users can update their own AURA records"
-  on public.aura_records for update to authenticated
-  using ((select auth.uid()) = user_id)
-  with check ((select auth.uid()) = user_id);
-
-drop policy if exists "Users can delete their own AURA records" on public.aura_records;
-create policy "Users can delete their own AURA records"
-  on public.aura_records for delete to authenticated
-  using ((select auth.uid()) = user_id);
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'aura_records' and policyname = 'AURA records select owner') then
+    execute 'create policy "AURA records select owner" on public.aura_records for select to authenticated using ((select auth.uid()) = user_id)';
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'aura_records' and policyname = 'AURA records insert owner') then
+    execute 'create policy "AURA records insert owner" on public.aura_records for insert to authenticated with check ((select auth.uid()) = user_id)';
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'aura_records' and policyname = 'AURA records update owner') then
+    execute 'create policy "AURA records update owner" on public.aura_records for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)';
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'aura_records' and policyname = 'AURA records delete owner') then
+    execute 'create policy "AURA records delete owner" on public.aura_records for delete to authenticated using ((select auth.uid()) = user_id)';
+  end if;
+end $$;

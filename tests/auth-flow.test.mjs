@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { processAuthInput } from '../lib/auth-flow.ts';
+import { SupabaseSetupError } from '../lib/supabase/config.ts';
 
 const input = { action: 'signup', name: 'AURA User', email: 'USER@example.com', password: 'a-strong-password' };
 
@@ -35,7 +36,7 @@ test('invalid signup input is rejected before storage is called', async () => {
 });
 
 test('missing Supabase config returns a clear setup response', async () => {
-  const setup = Object.assign(new Error('Account storage is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your deployment settings, then redeploy.'), { name: 'SupabaseSetupError' });
+  const setup = new SupabaseSetupError();
   const result = await processAuthInput(input, {
     signUp: async () => { throw setup; },
     signIn: async () => ({ user: null })

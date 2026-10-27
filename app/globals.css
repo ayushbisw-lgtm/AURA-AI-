@@ -229,3 +229,12 @@ button:disabled{cursor:not-allowed}
  .response-code-header{min-height:35px}
 }
 @media(prefers-reduced-motion:reduce){.formatted-response{animation:none}}
+
+.auth-forgot-row{display:flex;justify-content:flex-end;margin-top:-8px}
+.auth-forgot-row button,.auth-resend-row button{border:0;background:transparent;color:#a9bcff;font:600 12px 'DM Sans';cursor:pointer;padding:2px 0}
+.auth-forgot-row button:hover,.auth-resend-row button:not(:disabled):hover{color:#d3ddff;text-decoration:underline}
+.auth-resend-row{display:flex;justify-content:center;align-items:center;gap:5px;flex-wrap:wrap;color:#8791a4;font-size:11px}
+.auth-resend-row button:disabled{color:#70798b;cursor:not-allowed}
+.auth-notice{border:1px solid #39496c;background:#151d30;border-radius:8px;padding:10px;color:#c4d1ff;font-size:12px;line-height:1.55}
+.auth-switch button:focus-visible,.auth-forgot-row button:focus-visible,.auth-resend-row button:focus-visible{outline:2px solid #7695ff;outline-offset:3px;border-radius:3px}
+@media(max-width:480px){.auth-shell{padding:16px}.auth-card{padding:27px 22px}.auth-card h1{font-size:27px}.auth-brand{margin-bottom:30px}}
