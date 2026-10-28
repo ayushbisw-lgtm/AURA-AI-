@@ -88,6 +88,40 @@ The scheduler uses an atomic `FOR UPDATE SKIP LOCKED` claim, persistent reminder
 
 No live Supabase migration, Resend request, scheduled run, or Vercel deployment was performed during implementation. The email and cron features remain inactive until you configure the external services above.
 
+## Microsoft College Notice Inbox
+
+Academic includes a manual Outlook notice sync. It requests delegated `User.Read`, `Mail.Read`, and `offline_access` only. It does not request send/write or application permissions. The first sync reads a bounded maximum of 150 recent messages from the most recent 30 days; later syncs use Microsoft Graph delta cursors. No scheduler or paid service is required. Message body text is examined in memory for conservative academic keywords and is not retained. This version does not have an AI summary provider configured, so notices show **Summary unavailable** and candidate dates require review. Attachments are not downloaded. Archiving only changes the AURA copy.
+
+### Microsoft Entra app registration
+
+1. In Microsoft Entra admin center, create an app registration for your college tenant. Choose **Accounts in this organizational directory only** when using a tenant-specific ID. Set the platform to **Web**.
+2. Add this exact redirect URI for local development: `http://localhost:3000/api/outlook/callback`. In production add the exact HTTPS callback URL, for example `https://your-domain.example/api/outlook/callback`, and set `MICROSOFT_REDIRECT_URI` to the same value. Scheme, hostname, port, path, and trailing slash must match exactly.
+3. Create a client secret and copy its value once into the server environment as `MICROSOFT_CLIENT_SECRET`. Do not commit it or send it in chat.
+4. Under API permissions, add Microsoft Graph **Delegated** `User.Read`, `Mail.Read`, and `offline_access`. Do not add `Mail.ReadWrite`, `Mail.Send`, or application mail permissions. If tenant policy requires admin consent, ask the college Microsoft 365 administrator to approve these exact delegated permissions; this app cannot bypass tenant policy. A denied consent leaves the mailbox disconnected.
+5. Configure all of these in local `.env.local` (copied from `.env.example`) and in the production hosting environment. All values in `.env.example` are empty placeholders except the local callback example.
+
+```dotenv
+MICROSOFT_CLIENT_ID=
+MICROSOFT_TENANT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_REDIRECT_URI=http://localhost:3000/api/outlook/callback
+MICROSOFT_TOKEN_ENCRYPTION_KEY=
+```
+
+Generate a 32-byte encryption key locally and encode it as 64 hex characters, for example with `openssl rand -hex 32`; never print or commit the generated value. Keep it stable while encrypted connections exist. Rotating it without first disconnecting/reconnecting mailboxes makes their saved token caches unreadable. The confidential-client flow requires the server-only client secret. The redirect callback is `/api/outlook/callback`.
+
+### Supabase setup and security
+
+Outlook sync requires Supabase Auth accounts, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or its existing anon-key fallback), and the server-only `SUPABASE_SERVICE_ROLE_KEY`. Local file accounts are deliberately rejected because their IDs are not `auth.users` IDs. The service-role key is used only by server routes to access the credential table, which has no grants to browser roles. Notices are stored in `college_notices`, protected by `auth.uid()` RLS. The server derives the user from the Supabase session; it does not accept a user ID from the browser.
+
+Back up and review [`supabase/migrations/20261029000000_create_outlook_notices.sql`](supabase/migrations/20261029000000_create_outlook_notices.sql), then run it manually in the target Supabase SQL Editor. Do not run it automatically against production. Rollback by dropping `college_notices` and then `microsoft_mailbox_connections`; this deletes the AURA notice archive and local credential records. No production migration was run as part of this change. AURA does not retain full message bodies or download attachments; it retains message metadata and notice records until the account is deleted or the rows are removed by an administrator.
+
+### Local checks and operating limits
+
+Run `npm run dev`, sign in using Supabase Auth, open Academic → College Notices, connect, then choose **Sync notices**. Automated tests mock Graph; they never use mailbox credentials. Run `npm test`, `npx tsc --noEmit`, `npm run lint`, and `npm run build`. A missing provider, tenant consent denial, expired grant, invalid cursor, Graph throttling, or Supabase migration issue is surfaced as an error; sync can be retried manually. Microsoft refresh tokens reside only in an AES-256-GCM encrypted MSAL cache on the server. Disconnect deletes AURA's credential row and stops future syncs; Microsoft does not expose a narrowly scoped delegated revoke endpoint without requesting additional permissions, so revoke AURA under the Microsoft account **My Apps / Apps and services** page or ask the college administrator to remove the consent grant. Notice metadata remains until the AURA user account is deleted or an administrator removes the rows; no full message bodies or attachment files are retained.
+
+For production, set the five `MICROSOFT_*` values and `SUPABASE_SERVICE_ROLE_KEY` as server environment variables, set the redirect URI to the deployed HTTPS callback, and redeploy. Never add any of these secrets with a `NEXT_PUBLIC_` prefix. There is no automatic or guaranteed 24/7 sync in this version. Supabase free-tier database/storage quotas and Microsoft Graph throttling apply; the bounded manual sync avoids a paid scheduler or queue.
+
 Run the checks with:
 
 ```bash

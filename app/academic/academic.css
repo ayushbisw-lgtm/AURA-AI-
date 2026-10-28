@@ -55,3 +55,43 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:850px){.attendance-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.attendance-work-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.attendance-heading,.attendance-history-heading{align-items:stretch;flex-direction:column}.attendance-heading .academic-primary{align-self:flex-start}.attendance-subject-grid{grid-template-columns:1fr}.attendance-filters{display:grid;grid-template-columns:1fr 1fr}.attendance-filters label:first-child{grid-column:1/-1;width:100%}.attendance-filters label{width:100%}.attendance-history-list article{grid-template-columns:minmax(0,1fr) auto}.attendance-history-list article>p{grid-column:1/-1}.attendance-history-list article>.attendance-card-actions{grid-column:1/-1;justify-content:flex-end}}
 .academic-form select{position:relative;z-index:1;cursor:pointer;color-scheme:light}.academic-form select option{background:#fff;color:#37374d}.academic-shell[data-theme="dark"] .academic-form select{color-scheme:dark}.academic-shell[data-theme="dark"] .academic-form select option{background:#252633;color:#f0eff7}
+.college-notices-page { display: grid; gap: 18px; }
+.notice-intro { margin-bottom: 0; }
+.outlook-connection { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.outlook-status { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.outlook-status > div { display: grid; gap: 5px; }
+.outlook-status strong { color: var(--text-primary, #25283a); }
+.outlook-status small, .notice-sender, .notice-card-date { color: var(--text-muted, #85899b); font-size: 12px; overflow-wrap: anywhere; }
+.outlook-status .provider-dot { margin-top: 4px; }
+.notice-error-detail { color: #bd4e55 !important; }
+.outlook-controls, .notice-detail-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.notice-filters { padding: 14px; display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.notice-filters label, .notice-correction { display: grid; gap: 5px; color: var(--text-muted, #777b8b); font-size: 11px; }
+.notice-filters input:not([type=checkbox]), .notice-correction select { min-width: 132px; height: 36px; border: 1px solid var(--border, #e4e5ed); border-radius: 9px; background: var(--surface, white); color: var(--text-primary, #25283a); padding: 0 10px; }
+.notice-filters .notice-search { flex: 1 1 180px; }
+.notice-filters .notice-search input { width: 100%; }
+.notice-check { display: flex !important; align-items: center; gap: 7px !important; min-height: 36px; white-space: nowrap; }
+.notice-category-tabs { display: flex; gap: 7px; flex-wrap: wrap; }
+.notice-category-tabs button { border: 1px solid var(--border, #e4e5ed); border-radius: 999px; padding: 7px 12px; background: transparent; color: var(--text-muted, #777b8b); font-size: 12px; cursor: pointer; }
+.notice-category-tabs button.active { background: var(--accent-soft, #edf0ff); border-color: #aeb9ff; color: #505fc4; }
+.notice-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 12px; }
+.notice-card { text-align: left; display: grid; gap: 8px; padding: 16px; cursor: pointer; color: inherit; transition: transform .16s ease, box-shadow .16s ease; }
+.notice-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px #28315e12; }
+.notice-card > strong { color: var(--text-primary, #25283a); font-size: 14px; line-height: 1.4; }
+.notice-card > p, .notice-detail > p { color: var(--text-muted, #777b8b); font-size: 12px; line-height: 1.55; margin: 0; }
+.notice-card-top { display: flex; justify-content: space-between; align-items: center; }
+.notice-category, .notice-importance, .notice-review-flag { border-radius: 999px; padding: 4px 8px; background: #f0f1f7; color: #64697d; font-size: 10px; text-transform: capitalize; width: fit-content; }
+.notice-category.exam { background: #fff0e5; color: #ad6326; }.notice-category.assignment { background: #efeaff; color: #6b52ac; }.notice-category.fees { background: #fff5d8; color: #947018; }.notice-category.timetable { background: #e7f5ff; color: #3d779a; }.notice-category.event { background: #e6f7ee; color: #3d805c; }
+.notice-importance.high { background: #ffe9ea; color: #b54f59; }
+.notice-card.unread { border-color: #b9c3ff; }.notice-card.unread > strong::before { content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 7px 2px 0; border-radius: 50%; background: #6d7beb; }
+.notice-review-flag { background: #fff4d9; color: #87651c; }
+.notice-empty { padding: 30px; text-align: center; }.notice-empty p { color: var(--text-muted, #777b8b); font-size: 13px; }
+.notice-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; background: #13152688; }
+.notice-detail { width: min(650px, 100%); max-height: min(85vh, 850px); overflow: auto; padding: 24px; display: grid; gap: 14px; position: relative; }
+.notice-detail h2 { margin: 0; padding-right: 24px; font-size: 20px; color: var(--text-primary, #25283a); }
+.notice-close { position: absolute; right: 16px; top: 12px; border: 0; background: transparent; color: var(--text-muted, #777b8b); font-size: 25px; cursor: pointer; }
+.notice-review-dates { display: grid; gap: 10px; padding: 14px; border-radius: 12px; background: #fff9e9; color: #72561e; }
+.notice-review-dates p { margin: 0; font-size: 12px; line-height: 1.5; }.uncertain-date { display: flex; align-items: center; gap: 7px; font-size: 12px; }.uncertain-date span { color: #a07621; font-size: 10px; }.uncertain-date-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }.notice-review-dates > small { line-height: 1.5; color: #87651c; }
+.notice-attachment { padding: 10px; border-radius: 9px; background: #f3f4f8; }
+.notice-detail-actions { padding-top: 5px; }
+@media (max-width: 640px) { .outlook-connection { align-items: flex-start; flex-direction: column; }.notice-filters { align-items: stretch; }.notice-filters label { flex: 1 1 42%; }.notice-filters .notice-search { flex-basis: 100%; }.notice-detail { padding: 20px 16px; }.notice-detail-actions > * { flex: 1 1 auto; text-align: center; } }

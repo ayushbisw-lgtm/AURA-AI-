@@ -7,6 +7,7 @@ import type { AcademicData, AcademicTask, AcademicTaskKind, Semester, StudyChunk
 import AcademicDashboard, { EmptySettings, Icon, navGroups, QuickProfile, type AcademicAction, type AcademicSection, type ExamFormat, type ProviderStatus } from './AcademicDashboard';
 import AttendanceTracker from './AttendanceTracker';
 import ExamPlanner from './ExamPlanner';
+import CollegeNotices from './CollegeNotices';
 import type { WorkspaceSection } from '../WorkspaceSidebar';
 import { createDefaultSemester, DEFAULT_SEMESTER_PREFIX, getSemesterOptions } from '@/lib/semester-options';
 import './academic.css';
@@ -84,6 +85,7 @@ export default function AcademicWorkspace({ onBack, userId, onSignOut, onNavigat
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const target = params.get('planner');
+    if (params.get('section') === 'notices') { setSection('notices'); return; }
     if (target !== 'exam' && target !== 'reminders') return;
     setSection('exam-planner');
     if (target === 'exam') setEmailExamId(params.get('examId') ?? '');
@@ -173,7 +175,7 @@ export default function AcademicWorkspace({ onBack, userId, onSignOut, onNavigat
 
   const sectionTitle: Record<AcademicSection, string> = {
     overview: 'Home', courses: 'Courses & semesters', materials: 'PDF reader', ask: 'Ask your materials',
-    exams: 'Practice studio', planner: 'Learning path', 'exam-planner': 'Exam Planner', attendance: 'Attendance Tracker', settings: 'Settings'
+    exams: 'Practice studio', planner: 'Learning path', 'exam-planner': 'Exam Planner', attendance: 'Attendance Tracker', notices: 'College Notices', settings: 'Settings'
   };
   const upcoming = useMemo(() => data.tasks.filter(task => task.kind === 'exam' && !task.completed)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 3), [data.tasks]);
@@ -211,6 +213,7 @@ export default function AcademicWorkspace({ onBack, userId, onSignOut, onNavigat
           {section === 'planner' && <Planner key={navigationKey} data={data} runAction={runAction} initialDate={plannerDate} initialSubjectId={selectedSubjectId} />}
           {section === 'exam-planner' && <ExamPlanner key={navigationKey} initialExamId={emailExamId} initialView={new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('planner') === 'reminders' ? 'Reminders' : emailExamId ? 'Subject details' : 'Dashboard'} />}
           {section === 'attendance' && <AttendanceTracker userId={userId} onAddSubject={() => navigate({ section: 'courses' })} />}
+          {section === 'notices' && <CollegeNotices />}
           {section === 'settings' && <EmptySettings data={data} status={providerStatus} modelName={modelName} theme={theme} onThemeChange={setTheme} preferredName={preferredName} onEditPreferredName={onEditPreferredName} />}
         </>}
       </div>
