@@ -119,6 +119,14 @@ export default function Home() {
     return () => { mounted = false; };
   }, []);
 
+  // Email links should reopen the Academic workspace after sign-in as well.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!['exam', 'reminders'].includes(params.get('planner') ?? '')) return;
+    setVisitedWorkspaces(current => current.has('academic') ? current : new Set(current).add('academic'));
+    setWorkspace('academic');
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     let mounted = true;

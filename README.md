@@ -58,6 +58,36 @@ Choose **Academic** in the AURA sidebar to manage semesters and subjects, save s
 - Retrieval currently ranks text chunks by keyword overlap. It does not use embeddings, so paraphrased questions may miss relevant passages. Answers send only selected passages to the configured Ollama endpoint, which defaults to `http://127.0.0.1:11434` and `qwen2.5:3b`.
 - Exam sets can use matching uploaded passages. Without matching material, the local model generates from general knowledge and labels the result for syllabus review. qwen2.5:3b is text-only here; there is no cloud provider configured or used.
 
+## Exam Planner and email reminders
+
+The **Exam Planner** is an additive module in Academic. It supports manual subject/exam entry, review-before-save imports from selectable-text PDF, CSV, and XLSX (first worksheet), topic tracking, estimated study sessions, calendar views, and per-user reminder preferences. Images and scanned PDFs can be recorded but need manual exam entry because OCR is not configured. Imported file contents are processed in the browser and only parsed review data and a SHA-256 fingerprint are saved; the private source file itself is not uploaded. This release does not provide a daily digest, AI-generated study plan, or document syllabus/topic extraction. Ollama interpretation is optional and only works when the configured server can reach Ollama.
+
+### Apply the database migration manually
+
+Back up your Supabase project first. In the existing project's **SQL Editor**, review and run [`supabase/migrations/20261028000000_create_exam_planner.sql`](supabase/migrations/20261028000000_create_exam_planner.sql). It only adds Exam Planner tables, policies, indexes, and functions; it does not alter existing Academic tables. Do not use `db push` for this migration unless you have intentionally configured the Supabase CLI and reviewed its migration history. The app will show a setup error until this migration is installed. All saved planner data is owned by the authenticated Supabase user and protected by RLS.
+
+### Configure email delivery
+
+Email is optional. Without it, exams and study data still save, and reminder setup status is shown in the UI.
+
+1. Create a Resend account and verify a domain you control. The sender must use that verified domain. The free plan is currently advertised as 3,000 emails per month and 100 per day; quotas and terms can change, and accepted email is not guaranteed inbox delivery. See [Resend pricing](https://resend.com/pricing).
+2. Set the server-only variables from `.env.example` in local `.env.local` or Vercel project settings: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, and `NEXT_PUBLIC_APP_URL`. Keep the service-role key, Resend key, and cron secret server-side. Use a long random cron secret and the same value in Supabase Vault in the next step. Never paste secrets into chat or commit them.
+3. Deploy the app to the existing Vercel project after configuring variables. Do not deploy as part of this setup. The cron route is `/api/cron/exam-reminders` and accepts only `Authorization: Bearer <CRON_SECRET>`.
+4. In Supabase **Database → Extensions**, enable `pg_cron`, `pg_net`, and Vault if available on your project. In SQL Editor, review `supabase/scheduler/exam-reminders.sql`, replace both placeholders locally with the project URL and the cron secret, and run it once. It creates Vault secrets and schedules a one-minute invocation. Check Supabase's Cron dashboard/job table to confirm scheduling. To stop it, use `select cron.unschedule('aura-exam-reminders');`.
+
+The scheduler uses an atomic `FOR UPDATE SKIP LOCKED` claim, persistent reminder rows, provider idempotency keys, bounded retries, and logs provider acceptance (not inbox delivery). Supabase `pg_net` uses a transient request queue, so a database outage or scheduler interruption can delay a run; due jobs remain in the database and are eligible on a later run, but this free setup cannot guarantee exact delivery time or uninterrupted service. Vercel Hobby cron is not used because its schedule frequency is too low for the two-hour reminder option. Review current [Supabase Cron](https://supabase.com/docs/guides/cron), [pg_net](https://supabase.com/docs/guides/database/extensions/pg_net), [Vercel Cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing), and [Resend pricing](https://resend.com/pricing) before configuring; free tiers can change.
+
+### Manual smoke test
+
+1. Configure Supabase Auth and the existing records schema, then apply the Exam Planner migration above.
+2. Sign in as a verified account; open **Academic → Exam Planner**. Confirm the dashboard is empty rather than filled with sample data.
+3. Add a subject and exam manually, reload the page, then edit/reschedule and cancel it. Confirm the saved values persist and cancelled exams leave Upcoming Exams.
+4. Import a small text PDF, CSV, or XLSX; inspect every proposed date/time and subject, edit uncertain values, then confirm. Import the same file again and confirm it is flagged as a duplicate. Try a scanned PDF/image to see its manual-entry fallback.
+5. Add topics, mark one complete, create an estimated study plan, and check off a session. Inspect Upcoming, Past, Calendar, and Notification History.
+6. Configure Resend and the scheduler only after sender verification. Save reminders, request one test email, verify the provider acceptance/history status, then use Supabase's dashboard or a controlled due exam to check scheduler processing. Do not use an unverified sender or send tests to other recipients.
+
+No live Supabase migration, Resend request, scheduled run, or Vercel deployment was performed during implementation. The email and cron features remain inactive until you configure the external services above.
+
 Run the checks with:
 
 ```bash
