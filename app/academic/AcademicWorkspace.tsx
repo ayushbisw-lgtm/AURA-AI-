@@ -7,6 +7,7 @@ import type { AcademicData, AcademicTask, AcademicTaskKind, Semester, StudyChunk
 import AcademicDashboard, { EmptySettings, Icon, navGroups, QuickProfile, type AcademicAction, type AcademicSection, type ExamFormat, type ProviderStatus } from './AcademicDashboard';
 import AttendanceTracker from './AttendanceTracker';
 import type { WorkspaceSection } from '../WorkspaceSidebar';
+import { createDefaultSemester, DEFAULT_SEMESTER_PREFIX, getSemesterOptions } from '@/lib/semester-options';
 import './academic.css';
 
 type AcademicMessage = { role: 'user' | 'assistant'; content: string; sources?: string[] };
@@ -221,16 +222,18 @@ function Overview({ data, upcoming, progress, runAction }: {
   const [newSemesterEnd, setNewSemesterEnd] = useState('');
   const [subjectColor, setSubjectColor] = useState(COLORS[0]);
   const [formError, setFormError] = useState('');
+  const semesterOptions = useMemo(() => getSemesterOptions(data.semesters), [data.semesters]);
 
   useEffect(() => {
-    if (semesterId === NEW_SEMESTER_OPTION) return;
-    if (data.semesters.some(semester => semester.id === semesterId)) return;
-    setSemesterId(data.semesters[0]?.id ?? '');
-  }, [data.semesters, semesterId]);
+    if (semesterId === NEW_SEMESTER_OPTION || semesterId.startsWith(DEFAULT_SEMESTER_PREFIX)) return;
+    if (semesterOptions.some(semester => semester.id === semesterId)) return;
+    setSemesterId(semesterOptions[0]?.id ?? '');
+  }, [semesterOptions, semesterId]);
 
   async function addSemester(event: FormEvent) {
     event.preventDefault(); setFormError('');
     if (!semesterName.trim() || !semesterEnd || semesterEnd < semesterStart) { setFormError('Enter a semester name and a valid date range.'); return; }
+    if (data.semesters.some(item => item.name.trim().toLocaleLowerCase() === semesterName.trim().toLocaleLowerCase())) { setFormError('That semester already exists.'); return; }
     const semester: Semester = { id: createId(), name: semesterName.trim().slice(0, 80), startDate: semesterStart, endDate: semesterEnd, createdAt: new Date().toISOString() };
     await runAction(() => saveAcademicRecord('semesters', semester), 'Semester added.');
     setSemesterName('');
@@ -239,20 +242,29 @@ function Overview({ data, upcoming, progress, runAction }: {
   async function addSubject(event: FormEvent) {
     event.preventDefault(); setFormError('');
     if (!subjectName.trim()) { setFormError('Enter a subject name.'); return; }
-    let semester = data.semesters.find(item => item.id === semesterId);
+    let semester = semesterOptions.find(item => item.id === semesterId)?.semester;
+    if (semesterId.startsWith(DEFAULT_SEMESTER_PREFIX)) {
+      const name = semesterId.slice(DEFAULT_SEMESTER_PREFIX.length);
+      semester = data.semesters.find(item => item.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()) ?? createDefaultSemester(name, createId());
+    }
     if (semesterId === NEW_SEMESTER_OPTION) {
       if (!newSemesterName.trim() || !newSemesterEnd || newSemesterEnd < newSemesterStart) {
         setFormError('Enter a semester name and a valid date range.'); return;
       }
+      const existing = data.semesters.find(item => item.name.trim().toLocaleLowerCase() === newSemesterName.trim().toLocaleLowerCase());
+      if (existing) {
+        semester = existing;
+      } else {
       semester = {
         id: createId(), name: newSemesterName.trim().slice(0, 80),
         startDate: newSemesterStart, endDate: newSemesterEnd, createdAt: new Date().toISOString()
       };
+      }
     }
     if (!semester) { setFormError('Choose a saved semester or write a new one.'); return; }
     const subject: Subject = { id: createId(), name: subjectName.trim().slice(0, 80), code: subjectCode.trim().slice(0, 24), semesterId: semester.id, color: subjectColor, createdAt: new Date().toISOString() };
     await runAction(async () => {
-      if (semesterId === NEW_SEMESTER_OPTION) await saveAcademicRecord('semesters', semester!);
+      if ((semesterId === NEW_SEMESTER_OPTION && !data.semesters.some(item => item.id === semester!.id)) || (semesterId.startsWith(DEFAULT_SEMESTER_PREFIX) && !data.semesters.some(item => item.id === semester!.id))) await saveAcademicRecord('semesters', semester!);
       await saveAcademicRecord('subjects', subject);
     }, 'Subject added.');
     setSemesterId(semester.id);
@@ -280,7 +292,7 @@ function Overview({ data, upcoming, progress, runAction }: {
     <div className="academic-columns">
       <section className="academic-card"><div className="academic-card-heading"><div><span className="academic-kicker">YOUR COURSES</span><h3>Subjects</h3></div><span className="academic-count">{data.subjects.length}</span></div>
         {data.subjects.length === 0 ? <div className="academic-empty compact"><span>◈</span><strong>No subjects yet</strong><p>Add a semester, then create your first subject.</p></div> : <div className="subject-list">{data.subjects.map(subject => <div className="subject-row" key={subject.id}><span className="subject-swatch" style={{ background: subject.color }}/><div><strong>{subject.name}</strong><small>{subject.code || 'Course'} · {data.semesters.find(s => s.id === subject.semesterId)?.name || 'Semester'}</small></div><button className="icon-button" aria-label={`Delete ${subject.name}`} title="Delete subject" onClick={() => void removeSubject(subject)}>×</button></div>)}</div>}
-        <form className="academic-form" onSubmit={event => void addSubject(event)}><h4>Add a subject</h4><label>Subject name<input value={subjectName} onChange={event => setSubjectName(event.target.value)} maxLength={80} placeholder="e.g. Data Structures" required/></label><div className="form-row"><label>Course code<input value={subjectCode} onChange={event => setSubjectCode(event.target.value)} maxLength={24} placeholder="CS201"/></label><label>Semester<select value={semesterId} onChange={event => setSemesterId(event.target.value)} required><option value="">Choose an option…</option>{data.semesters.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value={NEW_SEMESTER_OPTION}>＋ Write a new semester</option></select></label></div>{semesterId === NEW_SEMESTER_OPTION && <><label>New semester name<input value={newSemesterName} onChange={event => setNewSemesterName(event.target.value)} maxLength={80} placeholder="e.g. Fall 2026" required/></label><div className="form-row"><label>Starts<input type="date" value={newSemesterStart} onChange={event => setNewSemesterStart(event.target.value)} required/></label><label>Ends<input type="date" value={newSemesterEnd} onChange={event => setNewSemesterEnd(event.target.value)} min={newSemesterStart} required/></label></div></>}<div className="color-picker" aria-label="Subject color">{COLORS.map(color => <button key={color} type="button" aria-label={`Choose ${color}`} className={subjectColor === color ? 'chosen' : ''} style={{ background: color }} onClick={() => setSubjectColor(color)}/>)}</div><button className="academic-primary" type="submit">＋ Add subject</button></form>
+        <form className="academic-form" onSubmit={event => void addSubject(event)}><h4>Add a subject</h4><label>Subject name<input value={subjectName} onChange={event => setSubjectName(event.target.value)} maxLength={80} placeholder="e.g. Data Structures" required/></label><div className="form-row"><label>Course code<input value={subjectCode} onChange={event => setSubjectCode(event.target.value)} maxLength={24} placeholder="CS201"/></label><label htmlFor="subject-semester">Semester<select id="subject-semester" value={semesterId} onChange={event => { setFormError(''); setSemesterId(event.currentTarget.value); }} required><option value="">Choose an option…</option>{semesterOptions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value={NEW_SEMESTER_OPTION}>＋ Write a new semester</option></select></label></div>{semesterId === NEW_SEMESTER_OPTION && <><label>New semester name<input value={newSemesterName} onChange={event => setNewSemesterName(event.target.value)} maxLength={80} placeholder="e.g. Fall 2026" required/></label><div className="form-row"><label>Starts<input type="date" value={newSemesterStart} onChange={event => setNewSemesterStart(event.target.value)} required/></label><label>Ends<input type="date" value={newSemesterEnd} onChange={event => setNewSemesterEnd(event.target.value)} min={newSemesterStart} required/></label></div></>}<div className="color-picker" aria-label="Subject color">{COLORS.map(color => <button key={color} type="button" aria-label={`Choose ${color}`} className={subjectColor === color ? 'chosen' : ''} style={{ background: color }} onClick={() => setSubjectColor(color)}/>)}</div><button className="academic-primary" type="submit">＋ Add subject</button></form>
       </section>
       <div className="academic-stack">
         <section className="academic-card"><div className="academic-card-heading"><div><span className="academic-kicker">YOUR TERM</span><h3>Semesters</h3></div><span className="academic-count">{data.semesters.length}</span></div>
