@@ -4,7 +4,7 @@ import { FormEvent, ReactNode, useMemo, useState } from 'react';
 import type { AcademicData, AcademicTask, AcademicTaskKind } from '@/lib/academic-types';
 import { saveAcademicRecord } from '@/lib/academic-store';
 
-export type AcademicSection = 'overview' | 'courses' | 'materials' | 'ask' | 'exams' | 'planner' | 'exam-planner' | 'attendance' | 'settings';
+export type AcademicSection = 'overview' | 'courses' | 'materials' | 'ask' | 'exams' | 'planner' | 'exam-planner' | 'attendance' | 'notices' | 'settings';
 export type ExamFormat = 'mcq' | 'short-answer' | 'flashcards' | 'mock-paper';
 export type AcademicAction = { section: AcademicSection | 'chat'; prompt?: string; format?: ExamFormat; date?: string };
 export type ProviderStatus = 'checking' | 'online' | 'offline';
@@ -199,6 +199,7 @@ export function navGroups(onNavigate: (action: AcademicAction) => void, activeSe
     { label: 'Practice Questions', icon: 'questions', action: { section: 'exams', format: 'short-answer' }, active: activeSection === 'exams' && activeFormat === 'short-answer' },
     { label: 'Learning Path', icon: 'path', action: { section: 'planner' }, active: activeSection === 'planner' },
     { label: 'Exam Planner', icon: 'exam', action: { section: 'exam-planner' }, active: activeSection === 'exam-planner' },
+    { label: 'College Notices', icon: 'notes', action: { section: 'notices' }, active: activeSection === 'notices' },
     { label: 'Attendance Tracker', icon: 'calendar', action: { section: 'attendance' }, active: activeSection === 'attendance' },
     { label: 'Flashcards', icon: 'cards', action: { section: 'exams', format: 'flashcards' }, active: activeSection === 'exams' && activeFormat === 'flashcards' },
     { label: 'Summary Notes', icon: 'notes', action: { section: 'ask', prompt: 'Create concise summary notes about: ' } },
