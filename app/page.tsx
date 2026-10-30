@@ -9,10 +9,13 @@ import TasksWorkspace from './TasksWorkspace';
 import StartupScreen from './StartupScreen';
 import FormattedResponse from './FormattedResponse';
 import WorkspaceSidebar, { type WorkspaceSection } from './WorkspaceSidebar';
+import MotionPreferencesPanel from './MotionPreferencesPanel';
+import { AuraCore } from './MotionFoundation';
+import { applyMotionPreferences, normalizeMotionPreferences } from '@/lib/motion-preferences';
 import type { PublicUser } from '@/lib/auth';
 import { ChatConversation, ChatHistoryMessage, deleteChatConversation, loadChatHistory, saveChatConversation } from '../lib/chat-history-store';
 import { findRelevantMemories } from '@/lib/personal-core';
-import { loadPersonalData, loadPreferredName, savePreferredName } from '@/lib/personal-store';
+import { loadPersonalData, loadPreferredName, loadSetting, savePreferredName } from '@/lib/personal-store';
 import { formatPersonalGreeting, formatStartupGreeting, getGreetingPeriod, getStartupGreetingPeriod, normalizePreferredName, type GreetingPeriod, type StartupGreetingPeriod } from '@/lib/profile';
 
 type Message = { role: 'user' | 'assistant'; content: string };
@@ -57,6 +60,7 @@ export default function Home() {
   const [greetingPeriod, setGreetingPeriod] = useState<GreetingPeriod | null>(null);
   const [startupGreetingPeriod, setStartupGreetingPeriod] = useState<StartupGreetingPeriod | null>(null);
   const [startupOverlayActive, setStartupOverlayActive] = useState(true);
+  const [motionSettingsOpen, setMotionSettingsOpen] = useState(false);
   const [authState, setAuthState] = useState<'checking' | 'signed-out' | 'signed-in'>('checking');
   const [workspace, setWorkspace] = useState<WorkspaceSection>('assistant');
   const [visitedWorkspaces, setVisitedWorkspaces] = useState<Set<WorkspaceSection>>(() => new Set(['assistant', 'history']));
@@ -70,6 +74,8 @@ export default function Home() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [auraFeedback, setAuraFeedback] = useState<'success' | 'error' | null>(null);
+  const auraFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [voiceSupported, setVoiceSupported] = useState<boolean | null>(null);
   const [speechOutputSupported, setSpeechOutputSupported] = useState(false);
@@ -92,6 +98,14 @@ export default function Home() {
     const timer = window.setInterval(updateGreeting, 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => () => { if (auraFeedbackTimer.current) clearTimeout(auraFeedbackTimer.current); }, []);
+
+  function flashAuraFeedback(state: 'success' | 'error') {
+    if (auraFeedbackTimer.current) clearTimeout(auraFeedbackTimer.current);
+    setAuraFeedback(state);
+    auraFeedbackTimer.current = setTimeout(() => { setAuraFeedback(null); auraFeedbackTimer.current = null; }, 950);
+  }
 
   function changeVoiceStatus(next: VoiceStatus) {
     voiceStatusRef.current = next;
@@ -140,6 +154,18 @@ export default function Home() {
     });
     return () => { mounted = false; };
   }, [user]);
+
+  const motionSettingsUserId = user?.id;
+  useEffect(() => {
+    if (!motionSettingsUserId) return;
+    let active = true;
+    void loadSetting(motionSettingsUserId, 'motionPreferences').then(value => {
+      if (active) applyMotionPreferences(normalizeMotionPreferences(value));
+    }).catch(() => {
+      if (active) applyMotionPreferences(normalizeMotionPreferences(null));
+    });
+    return () => { active = false; };
+  }, [motionSettingsUserId]);
 
   useEffect(() => {
     if (!user) {
@@ -224,6 +250,7 @@ export default function Home() {
     setMessages(next);
     setInput('');
     setBusy(true);
+    setAuraFeedback(null);
     setHistoryError('');
     const fromVoice = voiceStatusRef.current === 'processing';
     setConversations(current => [baseRecord, ...current.filter(item => item.id !== conversationId)]);
@@ -246,6 +273,7 @@ export default function Home() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'The request failed.');
+      flashAuraFeedback('success');
       const completed = [...next, { role: 'assistant' as const, content: data.message }];
       shouldFollowMessagesRef.current = true;
       setMessages(completed);
@@ -256,6 +284,7 @@ export default function Home() {
       }
       if (fromVoice && voiceReplies) speakReply(data.message);
     } catch (err) {
+      flashAuraFeedback('error');
       const message = err instanceof Error ? err.message : 'Something went wrong.';
       const completed = [...next, { role: 'assistant' as const, content: `I couldn’t reach the local AI model. ${message}\n\nCheck that Ollama is installed, running, and has the configured model.` }];
       shouldFollowMessagesRef.current = true;
@@ -425,13 +454,13 @@ export default function Home() {
     : !signedIn ? <AuthGate onAuthenticated={account => { setUser(account); setAuthState('signed-in'); }} />
       : <>
     <main className="shell app-shell" hidden={workspace === 'academic'}>
-      <WorkspaceSidebar active={workspace} status={status} onNavigate={navigateWorkspace} onNewChat={newConversation}/>
+      <WorkspaceSidebar active={workspace} status={status} onNavigate={navigateWorkspace} onNewChat={newConversation} onOpenSettings={() => setMotionSettingsOpen(true)}/>
       <section className="main-panel app-main-panel">
         <section className={`workspace-panel chat-panel ${workspace === 'assistant' ? 'is-active' : ''}`} hidden={workspace !== 'assistant'} aria-label="Assistant workspace">
-          <header className="topbar"><div><span className="eyebrow">YOUR PRIVATE WORKSPACE</span><h1>Assistant</h1></div><div className="topbar-auth"><button className="profile-name-button" onClick={openNameEditor} aria-label="Edit preferred name">{preferredName || normalizePreferredName(user.name) || 'Your profile'}</button><div className="model-pill"><span className={`tiny-dot ${status}`} /> {status === 'online' ? 'LOCAL MODEL' : 'LOCAL MODE'}</div><button className="signout-button" onClick={() => void signOut()}>Sign out</button></div></header>
+          <header className="topbar"><div className="assistant-title"><AuraCore size="small" state={voiceStatus === 'listening' ? 'listening' : voiceStatus === 'speaking' ? 'responding' : busy ? 'thinking' : auraFeedback ?? 'idle'}/><div><span className="eyebrow">YOUR PRIVATE WORKSPACE</span><h1>Assistant</h1></div></div><div className="topbar-auth"><button className="profile-name-button" onClick={openNameEditor} aria-label="Edit preferred name">{preferredName || normalizePreferredName(user.name) || 'Your profile'}</button><div className="model-pill"><span className={`tiny-dot ${status}`} /> {status === 'online' ? 'LOCAL MODEL' : 'LOCAL MODE'}</div><button className="signout-button" onClick={() => void signOut()}>Sign out</button></div></header>
           <div className="conversation">
             {showWelcome && <div className={`welcome ${messages.length ? 'welcome-exiting' : ''}`} aria-hidden={messages.length > 0}>
-              <div className="orb"><span>✳</span></div>
+              <div className="orb"><AuraCore size="large"/></div>
               <div className="eyebrow">A NEW KIND OF PERSONAL AI</div>
               <p className="welcome-greeting" aria-live="polite">{nameReady && greetingPeriod ? formatPersonalGreeting(greetingPeriod, preferredName) : <span className="greeting-loading">Preparing your welcome…</span>}</p>
               <h2>What’s on your mind?</h2>
@@ -464,6 +493,7 @@ export default function Home() {
       </section>
     </main>
     {visitedWorkspaces.has('academic') && <AcademicWorkspace isVisible={workspace === 'academic'} onBack={() => navigateWorkspace('assistant')} onNavigateWorkspace={section => navigateWorkspace(section)} userId={user.id} preferredName={preferredName || normalizePreferredName(user.name)} onEditPreferredName={openNameEditor} onSignOut={() => void signOut()} />}
+    {motionSettingsOpen && <MotionPreferencesPanel userId={user.id} onClose={() => setMotionSettingsOpen(false)}/>}
     {nameReady && nameDialogOpen && <div className="name-dialog-backdrop"><section className="name-dialog" role="dialog" aria-modal="true" aria-labelledby="name-dialog-title" aria-describedby="name-dialog-description"><div className="name-dialog-mark" aria-hidden="true">A</div><span className="eyebrow">YOUR AURA PROFILE</span><h2 id="name-dialog-title">{preferredName ? 'Edit your preferred name' : 'What should AURA call you?'}</h2><p id="name-dialog-description">Your name is used to personalize your welcome. It stays in your account’s local settings.</p><form onSubmit={event => void saveName(event)}><label htmlFor="preferred-name">Preferred name</label><input id="preferred-name" autoFocus autoComplete="given-name" maxLength={80} value={nameDraft} onChange={event => setNameDraft(event.target.value)} placeholder="Your name" aria-invalid={Boolean(nameError)} aria-describedby={nameError ? 'preferred-name-error' : undefined}/>{nameError && <p className="name-dialog-error" id="preferred-name-error" role="alert">{nameError}</p>}<div className="name-dialog-actions"><button type="button" className="name-dialog-secondary" onClick={() => setNameDialogOpen(false)} disabled={nameSaving}>{preferredName ? 'Cancel' : 'Continue without a name'}</button><button type="submit" className="name-dialog-primary" disabled={nameSaving || !nameDraft.trim()}>{nameSaving ? 'Saving…' : 'Save name'}</button></div></form></section></div>}
   </>;
   return <><div className="application-surface" inert={startupOverlayActive} aria-hidden={startupOverlayActive}>{content}</div><StartupScreen ready={startupReady} greeting={formatStartupGreeting(startupGreetingPeriod, nameReady ? preferredName : '')} status={startupStatus} onComplete={completeStartup}/></>;

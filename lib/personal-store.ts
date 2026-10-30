@@ -147,6 +147,35 @@ export async function savePreferredName(userId: string, name: string): Promise<v
   } finally { database.close(); }
 }
 
+export async function loadSetting(userId: string, key: string): Promise<unknown> {
+  if (cloudDataEnabled()) {
+    const settings = await loadCloudRecords<{ key: string; value?: unknown }>(userId, 'settings');
+    return settings.find(setting => setting.key === key)?.value;
+  }
+  const database = await openPersonalDatabase(userId);
+  try {
+    return await new Promise<unknown>((resolve, reject) => {
+      const request = database.transaction('settings', 'readonly').objectStore('settings').get(key);
+      request.onsuccess = () => resolve((request.result as { value?: unknown } | undefined)?.value);
+      request.onerror = () => reject(request.error ?? new Error('Could not load this setting.'));
+    });
+  } finally { database.close(); }
+}
+
+export async function saveSetting(userId: string, key: string, value: unknown): Promise<void> {
+  if (cloudDataEnabled()) return saveCloudRecord(userId, 'settings', key, { key, value });
+  const database = await openPersonalDatabase(userId);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('settings', 'readwrite');
+      transaction.objectStore('settings').put({ key, value });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not save this setting.'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Saving this setting was cancelled.'));
+    });
+  } finally { database.close(); }
+}
+
 export async function savePersonalTask(userId: string, task: PersonalTask): Promise<void> {
   if (cloudDataEnabled()) return saveCloudRecord(userId, 'personalTasks', task.id, task);
   const database = await openPersonalDatabase(userId);

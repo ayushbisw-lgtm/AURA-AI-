@@ -95,3 +95,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .notice-attachment { padding: 10px; border-radius: 9px; background: #f3f4f8; }
 .notice-detail-actions { padding-top: 5px; }
 @media (max-width: 640px) { .outlook-connection { align-items: flex-start; flex-direction: column; }.notice-filters { align-items: stretch; }.notice-filters label { flex: 1 1 42%; }.notice-filters .notice-search { flex-basis: 100%; }.notice-detail { padding: 20px 16px; }.notice-detail-actions > * { flex: 1 1 auto; text-align: center; } }
+
+/* Academic and Outlook interaction polish */
+.academic-shell .dashboard-card,.academic-shell .study-tools-card,.academic-shell .calendar-card,.academic-shell .attendance-panel,.academic-shell .attendance-subject-card,.academic-shell .notice-card,.academic-shell .outlook-connection,.academic-shell .notice-filters{transition:transform 260ms cubic-bezier(.2,.75,.25,1),box-shadow 260ms ease,border-color 220ms ease}
+.academic-shell .dashboard-card:hover,.academic-shell .study-tools-card:hover,.academic-shell .calendar-card:hover,.academic-shell .attendance-panel:hover,.academic-shell .attendance-subject-card:hover,.academic-shell .outlook-connection:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(39,37,76,.09)}
+.academic-shell .notice-card{animation:academic-card-in 300ms cubic-bezier(.2,.8,.2,1) both}.academic-shell .notice-card:hover{transform:translateY(-3px);box-shadow:0 14px 32px rgba(37,43,83,.12)}
+.attendance-meter>span,.goals-progress>div>span{transition:width 500ms cubic-bezier(.2,.75,.25,1),background-color 250ms ease}
+.dashboard-nav-item,.exam-planner-tabs button,.calendar-day,.study-tool-row,.notice-filters input,.notice-correction select{transition:background-color 190ms ease,border-color 190ms ease,color 190ms ease,transform 190ms ease,box-shadow 190ms ease}
+.dashboard-nav-item.active{box-shadow:inset 2px 0 #8d7ce7,0 4px 12px rgba(101,84,202,.08)}
+.exam-planner-tabs button.active{box-shadow:0 4px 14px rgba(99,81,196,.2)}
+.academic-shell[data-theme="dark"] .academic-content .dashboard-card:hover,.academic-shell[data-theme="dark"] .academic-content .study-tools-card:hover,.academic-shell[data-theme="dark"] .academic-content .calendar-card:hover,.academic-shell[data-theme="dark"] .attendance-subject-card:hover{box-shadow:0 14px 34px rgba(0,0,0,.22)}
+@keyframes academic-card-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+html[data-card-motion="false"] .academic-shell .dashboard-card:hover,html[data-card-motion="false"] .academic-shell .study-tools-card:hover,html[data-card-motion="false"] .academic-shell .calendar-card:hover,html[data-card-motion="false"] .academic-shell .attendance-panel:hover,html[data-card-motion="false"] .academic-shell .attendance-subject-card:hover,html[data-card-motion="false"] .academic-shell .outlook-connection:hover,html[data-card-motion="false"] .academic-shell .notice-card:hover{transform:none;box-shadow:initial}
+@media(max-width:760px){.academic-shell .dashboard-card:hover,.academic-shell .attendance-panel:hover,.academic-shell .attendance-subject-card:hover,.academic-shell .outlook-connection:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.academic-shell .notice-card{animation:none}.academic-shell .attendance-meter>span,.academic-shell .goals-progress>div>span{transition:none}}
