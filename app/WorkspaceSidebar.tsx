@@ -7,11 +7,12 @@ const items: { id: WorkspaceSection; label: string; icon: string }[] = [
   { id: 'coding', label: 'Coding tools', icon: '⌘' }, { id: 'tasks', label: 'Tasks', icon: '✓' }
 ];
 
-export default function WorkspaceSidebar({ active, status, onNavigate, onNewChat }: {
+export default function WorkspaceSidebar({ active, status, onNavigate, onNewChat, onOpenSettings }: {
   active: WorkspaceSection;
   status: 'checking' | 'online' | 'offline';
   onNavigate: (section: WorkspaceSection) => void;
   onNewChat: () => void;
+  onOpenSettings?: () => void;
 }) {
   return <aside className="sidebar">
     <div className="brand"><div className="brand-mark">A</div><div><strong>AURA</strong><span>PERSONAL AI</span></div></div>
@@ -19,5 +20,6 @@ export default function WorkspaceSidebar({ active, status, onNavigate, onNewChat
     <div className="side-label">YOUR WORKSPACE</div>
     <nav className="workspace-nav" aria-label="Main navigation">{items.map(item => <button className={`side-item ${active === item.id ? 'active' : ''}`} aria-current={active === item.id ? 'page' : undefined} key={item.id} onClick={() => onNavigate(item.id)}><span>{item.icon}</span>{item.label}</button>)}</nav>
     <div className="sidebar-bottom"><div className={`status-dot ${status === 'offline' ? '' : status}`} /><div><strong>{status === 'online' ? 'Local model ready' : status === 'checking' ? 'Checking local model…' : 'Model not detected'}</strong><span>{status === 'online' ? 'Ollama connection available' : 'Ollama · localhost:11434'}</span></div></div>
+    <button type="button" className="motion-settings-trigger" onClick={onOpenSettings} aria-label="Open motion preferences"><span aria-hidden="true">✳</span> Motion preferences</button>
   </aside>;
 }

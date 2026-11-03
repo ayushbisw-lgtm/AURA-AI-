@@ -201,6 +201,7 @@ export default function AcademicWorkspace({ onBack, userId, onSignOut, onNavigat
     <section className="academic-main">
       <header className="academic-topbar"><div><span className="academic-kicker">AURA AI ACADEMIC</span><h1>{sectionTitle[section]}</h1></div><div className="topbar-actions"><span className={`provider-chip ${providerStatus}`}><i/>{providerStatus === 'checking' ? 'Checking AI' : providerStatus === 'online' ? `${modelName} ready` : 'AI offline'}</span><button className="topbar-courses" onClick={() => navigate({ section: 'courses' })}><Icon name="plus" size={15}/> Add course</button><button className="academic-signout" onClick={onSignOut}>Sign out</button></div></header>
       <div className="academic-content">
+        <div className="academic-section-view" key={navigationKey}>
         {loadError && <div className="academic-alert error" role="alert">{loadError} <button onClick={() => { setLoading(true); void refresh(); }}>Try again</button></div>}
         {actionError && <div className="academic-alert error" role="alert">{actionError}</div>}
         {notice && <div className="academic-alert success" role="status">{notice}</div>}
@@ -216,6 +217,7 @@ export default function AcademicWorkspace({ onBack, userId, onSignOut, onNavigat
           {section === 'notices' && <CollegeNotices />}
           {section === 'settings' && <EmptySettings data={data} status={providerStatus} modelName={modelName} theme={theme} onThemeChange={setTheme} preferredName={preferredName} onEditPreferredName={onEditPreferredName} />}
         </>}
+        </div>
       </div>
     </section>
   </main>;
